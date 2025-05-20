@@ -1,0 +1,183 @@
+-- CatHub Loader Info
+if not game:IsLoaded() then game.Loaded:Wait() end
+print("CatHub Loaded! Version: 1.0")
+
+-- Game Lock (only works in specific place)
+local allowedPlaceId = 70876832253163
+if game.PlaceId ~= allowedPlaceId then
+    return warn("CatHub only works in the authorized experience.")
+end
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+-- UI Setup
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "CatHubUI"
+ScreenGui.ResetOnSpawn = false
+
+-- Assets
+local logoId = "rbxassetid://13333189503"
+
+-- Main Frame
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 500, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = false
+
+-- Logo
+local Logo = Instance.new("ImageLabel", MainFrame)
+Logo.Size = UDim2.new(0, 80, 0, 80)
+Logo.Position = UDim2.new(0, 10, 0, 10)
+Logo.Image = logoId
+Logo.BackgroundTransparency = 1
+
+-- Title
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Text = "CatHub"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 28
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundTransparency = 1
+Title.Size = UDim2.new(1, -100, 0, 50)
+Title.Position = UDim2.new(0, 100, 0, 20)
+
+-- Tabs
+local tabs = {"Main", "Visual", "Humanoid", "Aimbot", "Settings"}
+local currentTab = nil
+local tabFrames = {}
+
+local function createTab(name)
+    local Button = Instance.new("TextButton", MainFrame)
+    Button.Text = name
+    Button.Size = UDim2.new(0, 100, 0, 30)
+    Button.Position = UDim2.new(0, 10 + (#tabFrames * 105), 0, 100)
+    Button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Button.TextColor3 = Color3.new(1,1,1)
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 14
+
+    local Frame = Instance.new("Frame", MainFrame)
+    Frame.Size = UDim2.new(1, -20, 1, -140)
+    Frame.Position = UDim2.new(0, 10, 0, 140)
+    Frame.BackgroundTransparency = 1
+    Frame.Visible = false
+
+    Button.MouseButton1Click:Connect(function()
+        if currentTab then tabFrames[currentTab].Visible = false end
+        currentTab = name
+        Frame.Visible = true
+    end)
+
+    tabFrames[name] = Frame
+end
+
+for _, tab in ipairs(tabs) do
+    createTab(tab)
+end
+
+-- Utility functions
+local function toggleBox(text, parent, callback)
+    local box = Instance.new("TextButton", parent)
+    box.Size = UDim2.new(0, 200, 0, 30)
+    box.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    box.TextColor3 = Color3.new(1,1,1)
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 14
+    local state = false
+    box.Text = "[ ] " .. text
+    box.MouseButton1Click:Connect(function()
+        state = not state
+        box.Text = state and "[✓] " .. text or "[ ] " .. text
+        callback(state)
+    end)
+end
+
+local function button(text, parent, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(0, 200, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.Text = text
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- Main Tab Content
+local mainFrame = tabFrames["Main"]
+button("Teleport: Town of Sterling", mainFrame, function()
+    LocalPlayer.Character:PivotTo(CFrame.new(1200, 10, 500))
+end)
+
+button("Teleport: Castle", mainFrame, function()
+    LocalPlayer.Character:PivotTo(CFrame.new(5000, 10, 2200))
+end)
+
+button("Teleport: Tesla Lab", mainFrame, function()
+    LocalPlayer.Character:PivotTo(CFrame.new(14000, 10, 2000))
+end)
+
+for km = 0, 80, 10 do
+    button("Teleport: Outpost @ " .. km .. "km", mainFrame, function()
+        LocalPlayer.Character:PivotTo(CFrame.new(km * 1000, 10, 300))
+    end)
+end
+
+-- Visual Tab
+toggleBox("Enable Night Vision", tabFrames["Visual"], function(state)
+    game.Lighting.Brightness = state and 4 or 1
+end)
+
+-- Humanoid Tab
+toggleBox("Noclip", tabFrames["Humanoid"], function(enabled)
+    if enabled then
+        RunService.Stepped:Connect(function()
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end)
+    end
+end)
+
+-- Aimbot Tab
+toggleBox("Aimbot", tabFrames["Aimbot"], function(state)
+    print("Aimbot: ", state)
+end)
+
+toggleBox("Silent Aim", tabFrames["Aimbot"], function(state)
+    print("Silent Aim: ", state)
+end)
+
+-- Settings Tab
+button("Fly", tabFrames["Humanoid"], function()
+    -- Teleport to nearest chair excluding train seats
+    local nearest = nil
+    local minDist = math.huge
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Seat") and not tostring(obj.Parent):lower():find("train") then
+            local dist = (obj.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+            if dist < minDist then
+                minDist = dist
+                nearest = obj
+            end
+        end
+    end
+    if nearest then
+        LocalPlayer.Character:PivotTo(nearest.CFrame + Vector3.new(0, 5, 0))
+    end
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/GhostPlayer352/Test4/refs/heads/main/Vehicle%20Fly%20Gui'))()
+end)
+
+-- Load UI
+wait(1)
+MainFrame.Visible = true
